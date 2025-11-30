@@ -448,7 +448,210 @@ async def get_dashboard_stats():
         upcoming_deadlines=upcoming_tasks
     )
 
-# Include the router in the main app
+# ===== PRODUCTION FEATURES =====
+
+# File Upload Routes
+@api_router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    category: str = "general",
+    current_user: User = Depends(get_current_user)
+):
+    """Upload a file."""
+    try:
+        file_content = await file.read()
+        result = file_service.save_file(file_content, file.filename, category)
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "file_url": result["file_url"],
+                "filename": result["original_filename"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# PDF Generation Routes
+@api_router.get("/invoices/{invoice_id}/pdf")
+async def download_invoice_pdf(
+    invoice_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate and download invoice as PDF."""
+    try:
+        # Get invoice data
+        invoice = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        
+        # Convert datetime fields
+        if isinstance(invoice.get('due_date'), str):
+            due_date = datetime.fromisoformat(invoice['due_date'])
+            invoice['due_date'] = due_date.strftime('%B %d, %Y')
+        
+        # Generate PDF
+        pdf_bytes = pdf_service.generate_invoice_pdf(invoice)
+        
+        # Return as downloadable file
+        return StreamingResponse(
+            iter([pdf_bytes]),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=invoice-{invoice['invoice_number']}.pdf"
+            }
+        )
+    except Exception as e:
+        logger.error(f"PDF generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Email Notification Routes
+@api_router.post("/notifications/deadline-reminder/{task_id}")
+async def send_deadline_reminder_notification(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Send deadline reminder email for a task."""
+    try:
+        task = await db.tasks.find_one({"id": task_id}, {"_id": 0})
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Get client email
+        client = await db.clients.find_one({"id": task['client_id']}, {"_id": 0})
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Convert due_date
+        due_date = task['due_date']
+        if isinstance(due_date, str):
+            due_date = datetime.fromisoformat(due_date)
+        
+        # Send email
+        result = email_service.send_deadline_reminder(
+            to=client['email'],
+            task_name=task['title'],
+            deadline=due_date,
+            priority=task['priority']
+        )
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error sending reminder: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Reports Routes
+@api_router.get("/reports/compliance")
+async def get_compliance_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate compliance report."""
+    try:
+        query = {}
+        if start_date and end_date:
+            query['due_date'] = {
+                '$gte': start_date,
+                '$lte': end_date
+            }
+        
+        tasks = await db.tasks.find(query, {"_id": 0}).to_list(1000)
+        
+        # Group by task type
+        report = {
+            "total_tasks": len(tasks),
+            "by_type": {},
+            "by_status": {},
+            "overdue": 0
+        }
+        
+        for task in tasks:
+            task_type = task.get('task_type', 'GENERAL')
+            status = task.get('status', 'PENDING')
+            
+            report['by_type'][task_type] = report['by_type'].get(task_type, 0) + 1
+            report['by_status'][status] = report['by_status'].get(status, 0) + 1
+            
+            if status == 'OVERDUE':
+                report['overdue'] += 1
+        
+        return report
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Calendar View Route
+@api_router.get("/calendar/tasks")
+async def get_calendar_tasks(
+    month: int,
+    year: int,
+    current_user: User = Depends(get_current_user)
+):
+    \"\"\"Get tasks for calendar view by month and year.\"\"\"
+    try:
+        # Create date range for the month
+        from datetime import date
+        from calendar import monthrange
+        
+        start_date = date(year, month, 1)
+        _, last_day = monthrange(year, month)
+        end_date = date(year, month, last_day)
+        
+        # Query tasks
+        tasks = await db.tasks.find({
+            "due_date": {
+                "$gte": start_date.isoformat(),
+                "$lte": end_date.isoformat()
+            }
+        }, {"_id": 0}).to_list(1000)
+        
+        # Convert datetime strings
+        for task in tasks:
+            if isinstance(task.get('due_date'), str):
+                task['due_date'] = datetime.fromisoformat(task['due_date'])
+        
+        return {"tasks": tasks, "month": month, "year": year}
+    except Exception as e:
+        logger.error(f"Error fetching calendar tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Data Export Routes
+@api_router.get("/export/clients")
+async def export_clients_csv(current_user: User = Depends(get_current_user)):
+    \"\"\"Export clients as CSV.\"\"\"
+    import csv
+    from io import StringIO
+    
+    try:
+        clients = await db.clients.find({}, {"_id": 0}).to_list(1000)
+        
+        output = StringIO()
+        if clients:
+            writer = csv.DictWriter(output, fieldnames=clients[0].keys())
+            writer.writeheader()
+            writer.writerows(clients)
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": "attachment; filename=clients.csv"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Export error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Include auth router
+app.include_router(auth_router, prefix="/api")
+
+# Include the main API router
 app.include_router(api_router)
 
 app.add_middleware(
