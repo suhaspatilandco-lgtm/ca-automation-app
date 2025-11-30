@@ -821,9 +821,9 @@ async def stop_automation(current_user: User = Depends(get_current_user)):
     """Stop automation scheduler."""
     try:
         automation_service.shutdown()
-        return {\"success\": True, \"message\": \"Automation stopped\"}
+        return {"success": True, "message": "Automation stopped"}
     except Exception as e:
-        logger.error(f\"Automation stop error: {str(e)}\")
+        logger.error(f"Automation stop error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Manual trigger for testing
