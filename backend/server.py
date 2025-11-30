@@ -432,7 +432,6 @@ async def get_dashboard_stats():
     total_revenue = sum(invoice.get('total', 0) for invoice in paid_invoices)
     
     # Get upcoming deadlines (next 7 days)
-    now = datetime.now(timezone.utc)
     upcoming_tasks = await db.tasks.find(
         {"status": {"$in": ["PENDING", "IN_PROGRESS"]}},
         {"_id": 0}
