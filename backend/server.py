@@ -699,8 +699,8 @@ async def download_task_template(current_user: User = Depends(get_current_user))
     template_bytes = bulk_import_service.generate_task_template()
     return Response(
         content=template_bytes,
-        media_type=\"text/csv\",
-        headers={\"Content-Disposition\": \"attachment; filename=task_import_template.csv\"}
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=task_import_template.csv"}
     )
 
 # Template-based Task Creation
