@@ -779,9 +779,9 @@ async def smart_upload_file(
         }
         
         if client_id:
-            client = await db.clients.find_one({\"id\": client_id}, {\"_id\": 0})
+            client = await db.clients.find_one({"id": client_id}, {"_id": 0})
             if client:
-                doc[\"client_name\"] = client['name']
+                doc["client_name"] = client['name']
         
         await db.documents.insert_one(doc)
         
