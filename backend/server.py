@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,10 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-
+from enum import Enum
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,46 +25,414 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Enums
+class TaskType(str, Enum):
+    GST = "GST"
+    ITR = "ITR"
+    AUDIT = "AUDIT"
+    ROC = "ROC"
+    GENERAL = "GENERAL"
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+class TaskStatus(str, Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    OVERDUE = "OVERDUE"
+
+class Priority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
+class InvoiceStatus(str, Enum):
+    DRAFT = "DRAFT"
+    SENT = "SENT"
+    PAID = "PAID"
+    OVERDUE = "OVERDUE"
+
+class ClientStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+
+# Models
+class Client(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    name: str
+    email: str
+    phone: str
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    address: Optional[str] = None
+    status: ClientStatus = ClientStatus.ACTIVE
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class ClientCreate(BaseModel):
+    name: str
+    email: str
+    phone: str
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    address: Optional[str] = None
+    status: Optional[ClientStatus] = ClientStatus.ACTIVE
 
-# Add your routes to the router instead of directly to app
+class Task(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: Optional[str] = None
+    client_id: str
+    client_name: Optional[str] = None
+    task_type: TaskType
+    due_date: datetime
+    status: TaskStatus = TaskStatus.PENDING
+    priority: Priority = Priority.MEDIUM
+    assigned_to: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    client_id: str
+    task_type: TaskType
+    due_date: datetime
+    status: Optional[TaskStatus] = TaskStatus.PENDING
+    priority: Optional[Priority] = Priority.MEDIUM
+    assigned_to: Optional[str] = None
+
+class Document(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_id: str
+    client_name: Optional[str] = None
+    filename: str
+    file_url: str
+    category: str
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DocumentCreate(BaseModel):
+    client_id: str
+    filename: str
+    file_url: str
+    category: str
+
+class InvoiceItem(BaseModel):
+    description: str
+    quantity: int
+    rate: float
+    amount: float
+
+class Invoice(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_id: str
+    client_name: Optional[str] = None
+    invoice_number: str
+    items: List[InvoiceItem]
+    subtotal: float
+    tax: float
+    total: float
+    status: InvoiceStatus = InvoiceStatus.DRAFT
+    due_date: datetime
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class InvoiceCreate(BaseModel):
+    client_id: str
+    invoice_number: str
+    items: List[InvoiceItem]
+    subtotal: float
+    tax: float
+    total: float
+    status: Optional[InvoiceStatus] = InvoiceStatus.DRAFT
+    due_date: datetime
+
+class Staff(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    role: str
+    phone: str
+    joined_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StaffCreate(BaseModel):
+    name: str
+    email: str
+    role: str
+    phone: str
+
+class DashboardStats(BaseModel):
+    total_clients: int
+    active_tasks: int
+    pending_invoices: int
+    total_revenue: float
+    upcoming_deadlines: List[Task]
+
+# Helper function to serialize datetime
+def serialize_datetime(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
+
+# Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "CA Practice Automation API"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+# Client Routes
+@api_router.post("/clients", response_model=Client)
+async def create_client(client_input: ClientCreate):
+    client_dict = client_input.model_dump()
+    client = Client(**client_dict)
+    doc = client.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.clients.insert_one(doc)
+    return client
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/clients", response_model=List[Client])
+async def get_clients(status: Optional[str] = None):
+    query = {}
+    if status:
+        query['status'] = status
+    clients = await db.clients.find(query, {"_id": 0}).to_list(1000)
+    for client in clients:
+        if isinstance(client.get('created_at'), str):
+            client['created_at'] = datetime.fromisoformat(client['created_at'])
+    return clients
+
+@api_router.get("/clients/{client_id}", response_model=Client)
+async def get_client(client_id: str):
+    client = await db.clients.find_one({"id": client_id}, {"_id": 0})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    if isinstance(client.get('created_at'), str):
+        client['created_at'] = datetime.fromisoformat(client['created_at'])
+    return client
+
+@api_router.put("/clients/{client_id}", response_model=Client)
+async def update_client(client_id: str, client_input: ClientCreate):
+    client_dict = client_input.model_dump()
+    result = await db.clients.update_one({"id": client_id}, {"$set": client_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Client not found")
+    updated_client = await db.clients.find_one({"id": client_id}, {"_id": 0})
+    if isinstance(updated_client.get('created_at'), str):
+        updated_client['created_at'] = datetime.fromisoformat(updated_client['created_at'])
+    return updated_client
+
+@api_router.delete("/clients/{client_id}")
+async def delete_client(client_id: str):
+    result = await db.clients.delete_one({"id": client_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return {"message": "Client deleted successfully"}
+
+# Task Routes
+@api_router.post("/tasks", response_model=Task)
+async def create_task(task_input: TaskCreate):
+    task_dict = task_input.model_dump()
+    # Get client name
+    client = await db.clients.find_one({"id": task_dict['client_id']}, {"_id": 0})
+    if client:
+        task_dict['client_name'] = client['name']
+    task = Task(**task_dict)
+    doc = task.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['due_date'] = doc['due_date'].isoformat()
+    await db.tasks.insert_one(doc)
+    return task
+
+@api_router.get("/tasks", response_model=List[Task])
+async def get_tasks(status: Optional[str] = None, task_type: Optional[str] = None):
+    query = {}
+    if status:
+        query['status'] = status
+    if task_type:
+        query['task_type'] = task_type
+    tasks = await db.tasks.find(query, {"_id": 0}).to_list(1000)
+    for task in tasks:
+        if isinstance(task.get('created_at'), str):
+            task['created_at'] = datetime.fromisoformat(task['created_at'])
+        if isinstance(task.get('due_date'), str):
+            task['due_date'] = datetime.fromisoformat(task['due_date'])
+    return tasks
+
+@api_router.get("/tasks/{task_id}", response_model=Task)
+async def get_task(task_id: str):
+    task = await db.tasks.find_one({"id": task_id}, {"_id": 0})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if isinstance(task.get('created_at'), str):
+        task['created_at'] = datetime.fromisoformat(task['created_at'])
+    if isinstance(task.get('due_date'), str):
+        task['due_date'] = datetime.fromisoformat(task['due_date'])
+    return task
+
+@api_router.put("/tasks/{task_id}", response_model=Task)
+async def update_task(task_id: str, task_input: TaskCreate):
+    task_dict = task_input.model_dump()
+    # Get client name
+    client = await db.clients.find_one({"id": task_dict['client_id']}, {"_id": 0})
+    if client:
+        task_dict['client_name'] = client['name']
+    task_dict['due_date'] = task_dict['due_date'].isoformat()
+    result = await db.tasks.update_one({"id": task_id}, {"$set": task_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    updated_task = await db.tasks.find_one({"id": task_id}, {"_id": 0})
+    if isinstance(updated_task.get('created_at'), str):
+        updated_task['created_at'] = datetime.fromisoformat(updated_task['created_at'])
+    if isinstance(updated_task.get('due_date'), str):
+        updated_task['due_date'] = datetime.fromisoformat(updated_task['due_date'])
+    return updated_task
+
+@api_router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str):
+    result = await db.tasks.delete_one({"id": task_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"message": "Task deleted successfully"}
+
+# Document Routes
+@api_router.post("/documents", response_model=Document)
+async def create_document(doc_input: DocumentCreate):
+    doc_dict = doc_input.model_dump()
+    # Get client name
+    client = await db.clients.find_one({"id": doc_dict['client_id']}, {"_id": 0})
+    if client:
+        doc_dict['client_name'] = client['name']
+    document = Document(**doc_dict)
+    doc = document.model_dump()
+    doc['uploaded_at'] = doc['uploaded_at'].isoformat()
+    await db.documents.insert_one(doc)
+    return document
+
+@api_router.get("/documents", response_model=List[Document])
+async def get_documents(client_id: Optional[str] = None):
+    query = {}
+    if client_id:
+        query['client_id'] = client_id
+    documents = await db.documents.find(query, {"_id": 0}).to_list(1000)
+    for doc in documents:
+        if isinstance(doc.get('uploaded_at'), str):
+            doc['uploaded_at'] = datetime.fromisoformat(doc['uploaded_at'])
+    return documents
+
+@api_router.delete("/documents/{doc_id}")
+async def delete_document(doc_id: str):
+    result = await db.documents.delete_one({"id": doc_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"message": "Document deleted successfully"}
+
+# Invoice Routes
+@api_router.post("/invoices", response_model=Invoice)
+async def create_invoice(invoice_input: InvoiceCreate):
+    invoice_dict = invoice_input.model_dump()
+    # Get client name
+    client = await db.clients.find_one({"id": invoice_dict['client_id']}, {"_id": 0})
+    if client:
+        invoice_dict['client_name'] = client['name']
+    invoice = Invoice(**invoice_dict)
+    doc = invoice.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['due_date'] = doc['due_date'].isoformat()
+    await db.invoices.insert_one(doc)
+    return invoice
+
+@api_router.get("/invoices", response_model=List[Invoice])
+async def get_invoices(status: Optional[str] = None):
+    query = {}
+    if status:
+        query['status'] = status
+    invoices = await db.invoices.find(query, {"_id": 0}).to_list(1000)
+    for invoice in invoices:
+        if isinstance(invoice.get('created_at'), str):
+            invoice['created_at'] = datetime.fromisoformat(invoice['created_at'])
+        if isinstance(invoice.get('due_date'), str):
+            invoice['due_date'] = datetime.fromisoformat(invoice['due_date'])
+    return invoices
+
+@api_router.put("/invoices/{invoice_id}", response_model=Invoice)
+async def update_invoice(invoice_id: str, invoice_input: InvoiceCreate):
+    invoice_dict = invoice_input.model_dump()
+    # Get client name
+    client = await db.clients.find_one({"id": invoice_dict['client_id']}, {"_id": 0})
+    if client:
+        invoice_dict['client_name'] = client['name']
+    invoice_dict['due_date'] = invoice_dict['due_date'].isoformat()
+    result = await db.invoices.update_one({"id": invoice_id}, {"$set": invoice_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    updated_invoice = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
+    if isinstance(updated_invoice.get('created_at'), str):
+        updated_invoice['created_at'] = datetime.fromisoformat(updated_invoice['created_at'])
+    if isinstance(updated_invoice.get('due_date'), str):
+        updated_invoice['due_date'] = datetime.fromisoformat(updated_invoice['due_date'])
+    return updated_invoice
+
+# Staff Routes
+@api_router.post("/staff", response_model=Staff)
+async def create_staff(staff_input: StaffCreate):
+    staff_dict = staff_input.model_dump()
+    staff = Staff(**staff_dict)
+    doc = staff.model_dump()
+    doc['joined_date'] = doc['joined_date'].isoformat()
+    await db.staff.insert_one(doc)
+    return staff
+
+@api_router.get("/staff", response_model=List[Staff])
+async def get_staff():
+    staff_list = await db.staff.find({}, {"_id": 0}).to_list(1000)
+    for staff in staff_list:
+        if isinstance(staff.get('joined_date'), str):
+            staff['joined_date'] = datetime.fromisoformat(staff['joined_date'])
+    return staff_list
+
+@api_router.delete("/staff/{staff_id}")
+async def delete_staff(staff_id: str):
+    result = await db.staff.delete_one({"id": staff_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    return {"message": "Staff deleted successfully"}
+
+# Dashboard Stats
+@api_router.get("/dashboard/stats", response_model=DashboardStats)
+async def get_dashboard_stats():
+    # Count total clients
+    total_clients = await db.clients.count_documents({"status": "ACTIVE"})
     
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
+    # Count active tasks
+    active_tasks = await db.tasks.count_documents({"status": {"$in": ["PENDING", "IN_PROGRESS"]}})
     
-    return status_checks
+    # Count pending invoices
+    pending_invoices = await db.invoices.count_documents({"status": {"$in": ["SENT", "OVERDUE"]}})
+    
+    # Calculate total revenue
+    paid_invoices = await db.invoices.find({"status": "PAID"}, {"_id": 0}).to_list(1000)
+    total_revenue = sum(invoice.get('total', 0) for invoice in paid_invoices)
+    
+    # Get upcoming deadlines (next 7 days)
+    now = datetime.now(timezone.utc)
+    upcoming_tasks = await db.tasks.find(
+        {"status": {"$in": ["PENDING", "IN_PROGRESS"]}},
+        {"_id": 0}
+    ).sort("due_date", 1).limit(5).to_list(5)
+    
+    for task in upcoming_tasks:
+        if isinstance(task.get('created_at'), str):
+            task['created_at'] = datetime.fromisoformat(task['created_at'])
+        if isinstance(task.get('due_date'), str):
+            task['due_date'] = datetime.fromisoformat(task['due_date'])
+    
+    return DashboardStats(
+        total_clients=total_clients,
+        active_tasks=active_tasks,
+        pending_invoices=pending_invoices,
+        total_revenue=total_revenue,
+        upcoming_deadlines=upcoming_tasks
+    )
 
 # Include the router in the main app
 app.include_router(api_router)
