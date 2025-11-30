@@ -719,9 +719,9 @@ async def create_task_from_template(
     """Create task from template."""
     try:
         # Get client
-        client = await db.clients.find_one({\"id\": client_id}, {\"_id\": 0})
+        client = await db.clients.find_one({"id": client_id}, {"_id": 0})
         if not client:
-            raise HTTPException(status_code=404, detail=\"Client not found\")
+            raise HTTPException(status_code=404, detail="Client not found")
         
         result = await template_service.create_from_template(
             template_name=template_name,
