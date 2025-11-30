@@ -621,7 +621,7 @@ async def get_calendar_tasks(
 # Data Export Routes
 @api_router.get("/export/clients")
 async def export_clients_csv(current_user: User = Depends(get_current_user)):
-    \"\"\"Export clients as CSV.\"\"\"
+    """Export clients as CSV."""
     import csv
     from io import StringIO
     
