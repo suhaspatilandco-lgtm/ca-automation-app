@@ -590,7 +590,7 @@ async def get_calendar_tasks(
     year: int,
     current_user: User = Depends(get_current_user)
 ):
-    \"\"\"Get tasks for calendar view by month and year.\"\"\"
+    """Get tasks for calendar view by month and year."""
     try:
         # Create date range for the month
         from datetime import date
