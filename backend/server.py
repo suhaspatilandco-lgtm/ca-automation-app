@@ -707,7 +707,7 @@ async def download_task_template(current_user: User = Depends(get_current_user))
 @api_router.get("/templates/services")
 async def get_service_templates(current_user: User = Depends(get_current_user)):
     """Get available service templates."""
-    return {\"templates\": template_service.get_available_templates()}
+    return {"templates": template_service.get_available_templates()}
 
 @api_router.post("/templates/create-task")
 async def create_task_from_template(
