@@ -803,17 +803,17 @@ async def start_automation(current_user: User = Depends(get_current_user)):
     try:
         automation_service.start_automation()
         return {
-            \"success\": True,
-            \"message\": \"Automation started successfully\",
-            \"scheduled_jobs\": [
-                \"Deadline reminders (daily at 9 AM)\",
-                \"Recurring task generation (daily at midnight)\",
-                \"Overdue task updates (hourly)\",
-                \"Auto task assignment (daily at 8 AM)\"
+            "success": True,
+            "message": "Automation started successfully",
+            "scheduled_jobs": [
+                "Deadline reminders (daily at 9 AM)",
+                "Recurring task generation (daily at midnight)",
+                "Overdue task updates (hourly)",
+                "Auto task assignment (daily at 8 AM)"
             ]
         }
     except Exception as e:
-        logger.error(f\"Automation start error: {str(e)}\")
+        logger.error(f"Automation start error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/automation/stop")
