@@ -1,0 +1,169 @@
+{
+  "design_system": {
+    "identity": {
+      "name": "CA Practice Automation",
+      "persona": "E1: The Anti-AI Designer",
+      "archetype": "Swiss & High-Contrast (Authority) mixed with Jewel (Premium)",
+      "tone": "Professional, Efficient, Trustworthy, Organized",
+      "principles": [
+        "Fusion over Imitation: Mix Swiss precision with premium textures",
+        "Content is King: Data density without clutter",
+        "Contrast: High contrast for readability and hierarchy",
+        "Negative Space: Use whitespace to group related data, not just for aesthetics"
+      ]
+    },
+    "typography": {
+      "fonts": {
+        "headings": {
+          "family": "Manrope",
+          "weights": ["600", "700", "800"],
+          "usage": "Page titles, Section headers, KPI values"
+        },
+        "body": {
+          "family": "Inter",
+          "weights": ["400", "500"],
+          "usage": "General UI text, labels, descriptions"
+        },
+        "mono": {
+          "family": "JetBrains Mono",
+          "weights": ["400", "500"],
+          "usage": "Financial data, dates, reference numbers, codes"
+        }
+      },
+      "scale": {
+        "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+        "h2": "text-3xl font-semibold tracking-tight",
+        "h3": "text-2xl font-semibold",
+        "body_lg": "text-lg leading-relaxed",
+        "body_base": "text-base leading-relaxed",
+        "caption": "text-sm text-muted-foreground uppercase tracking-wider"
+      }
+    },
+    "colors": {
+      "palette": {
+        "primary": {
+          "name": "Midnight Navy",
+          "hex": "#0f172a",
+          "tailwind": "bg-slate-900 text-white"
+        },
+        "secondary": {
+          "name": "Emerald Trust",
+          "hex": "#10b981",
+          "tailwind": "bg-emerald-500 text-white"
+        },
+        "accent": {
+          "name": "Deadline Amber",
+          "hex": "#f59e0b",
+          "tailwind": "bg-amber-500 text-white"
+        },
+        "background": {
+          "light": "#f8fafc",
+          "dark": "#020617",
+          "tailwind": "bg-slate-50 dark:bg-slate-950"
+        },
+        "surface": {
+          "light": "#ffffff",
+          "dark": "#0f172a",
+          "tailwind": "bg-white dark:bg-slate-900"
+        }
+      },
+      "gradients": {
+        "subtle_glow": "bg-gradient-to-br from-slate-900 to-slate-800",
+        "active_state": "bg-gradient-to-r from-emerald-500/10 to-transparent"
+      }
+    },
+    "layout": {
+      "spacing": {
+        "container_padding": "p-6 md:p-8 lg:p-12",
+        "section_gap": "gap-8 md:gap-12",
+        "item_gap": "gap-4"
+      },
+      "grids": {
+        "dashboard": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+        "detail_view": "grid grid-cols-1 lg:grid-cols-12 gap-8"
+      },
+      "containers": {
+        "card": "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-lg",
+        "sidebar": "w-64 h-screen bg-slate-900 text-slate-300 fixed left-0 top-0 border-r border-slate-800"
+      }
+    },
+    "components": {
+      "buttons": {
+        "primary": "bg-slate-900 hover:bg-slate-800 text-white rounded-md px-6 py-2.5 font-medium transition-all shadow-sm hover:shadow-md active:scale-95",
+        "secondary": "bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 rounded-md px-6 py-2.5 font-medium transition-all",
+        "danger": "bg-red-600 hover:bg-red-700 text-white rounded-md px-6 py-2.5 font-medium"
+      },
+      "inputs": {
+        "default": "h-11 rounded-md border-slate-200 focus:ring-2 focus:ring-slate-900 focus:border-transparent bg-white"
+      },
+      "cards": {
+        "style": "clean",
+        "border_radius": "rounded-lg",
+        "shadow": "shadow-sm hover:shadow-md transition-shadow duration-200"
+      }
+    },
+    "visual_enhancers": {
+      "glassmorphism": "backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/50",
+      "textures": "bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]",
+      "shadows": {
+        "soft": "shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
+        "float": "shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+      }
+    },
+    "motion": {
+      "transitions": "transition-all duration-200 ease-in-out",
+      "hover_lift": "hover:-translate-y-1",
+      "page_enter": {
+        "initial": { "opacity": 0, "y": 10 },
+        "animate": { "opacity": 1, "y": 0 },
+        "exit": { "opacity": 0, "y": -10 }
+      }
+    }
+  },
+  "assets": {
+    "images": {
+      "login_background": {
+        "url": "https://images.unsplash.com/photo-1654658975918-a2c06424550a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBtaW5pbWFsaXN0JTIwb2ZmaWNlJTIwaW50ZXJpb3IlMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzY0NTIyNjQ4fDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Modern office architecture",
+        "usage": "Login page split screen background"
+      },
+      "dashboard_hero": {
+        "url": "https://images.unsplash.com/photo-1761481755390-83999d790b95?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHBhcGVyJTIwdGV4dHVyZSUyMG1pbmltYWxpc3R8ZW58MHx8fHwxNzY0NTIyNjUyfDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Abstract white flowing shapes",
+        "usage": "Subtle background for dashboard header or welcome section"
+      },
+      "team_placeholder": {
+        "url": "https://images.unsplash.com/photo-1758691737158-18ffa31c0a46?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHRlYW0lMjBkaXZlcnNlJTIwbWVldGluZ3xlbnwwfHx8fDE3NjQ1MjI2NTF8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Professional team meeting",
+        "usage": "About page or Staff management empty state"
+      },
+      "empty_state_docs": {
+        "url": "https://images.unsplash.com/photo-1760336472685-4c3f0dd8d204?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHBhcGVyJTIwdGV4dHVyZSUyMG1pbmltYWxpc3R8ZW58MHx8fHwxNzY0NTIyNjUyfDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Abstract geometric paper",
+        "usage": "Empty state for document lists"
+      }
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "Stroke width 1.5px, size 20px for UI, 24px for Nav"
+    }
+  },
+  "implementation_guide": {
+    "steps": [
+      "1. Setup Tailwind theme colors and fonts in tailwind.config.js",
+      "2. Create a Layout component with Sidebar and Header",
+      "3. Build the Dashboard 'Control Room' grid",
+      "4. Implement Client Management with 'Tetris' grid for profiles",
+      "5. Create reusable data-table component with sorting/filtering",
+      "6. Integrate Recharts for financial analytics"
+    ],
+    "universal_rules": [
+      "Use 'sonner' for all toast notifications",
+      "Use 'lucide-react' for icons",
+      "Ensure all interactive elements have data-testid",
+      "Do not use gradients for text",
+      "Always use named exports for components",
+      "Use default exports for pages"
+    ]
+  }
+}
