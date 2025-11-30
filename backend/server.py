@@ -731,14 +731,14 @@ async def create_task_from_template(
             custom_data=custom_data
         )
         
-        if not result[\"success\"]:
-            raise HTTPException(status_code=400, detail=result[\"error\"])
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["error"])
         
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f\"Template task creation error: {str(e)}\")
+        logger.error(f"Template task creation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Smart Document Upload with Auto-categorization
