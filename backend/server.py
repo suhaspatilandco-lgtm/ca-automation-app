@@ -763,8 +763,8 @@ async def smart_upload_file(
         file_content = await file.read()
         result = file_service.save_file(file_content, file.filename, category)
         
-        if not result[\"success\"]:
-            raise HTTPException(status_code=500, detail=result[\"error\"])
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
         
         # Create document record
         doc = {
