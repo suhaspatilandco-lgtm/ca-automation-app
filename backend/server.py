@@ -689,8 +689,8 @@ async def download_client_template(current_user: User = Depends(get_current_user
     template_bytes = bulk_import_service.generate_client_template()
     return Response(
         content=template_bytes,
-        media_type=\"text/csv\",
-        headers={\"Content-Disposition\": \"attachment; filename=client_import_template.csv\"}
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=client_import_template.csv"}
     )
 
 @api_router.get("/import/templates/tasks")
