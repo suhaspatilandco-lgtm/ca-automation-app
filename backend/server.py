@@ -768,14 +768,14 @@ async def smart_upload_file(
         
         # Create document record
         doc = {
-            \"id\": str(uuid.uuid4()),
-            \"client_id\": client_id,
-            \"filename\": file.filename,
-            \"file_url\": result[\"file_url\"],
-            \"category\": category,
-            \"tags\": tags,
-            \"metadata\": metadata,
-            \"uploaded_at\": datetime.now(timezone.utc).isoformat()
+            "id": str(uuid.uuid4()),
+            "client_id": client_id,
+            "filename": file.filename,
+            "file_url": result["file_url"],
+            "category": category,
+            "tags": tags,
+            "metadata": metadata,
+            "uploaded_at": datetime.now(timezone.utc).isoformat()
         }
         
         if client_id:
