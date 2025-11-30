@@ -786,14 +786,14 @@ async def smart_upload_file(
         await db.documents.insert_one(doc)
         
         return {
-            \"success\": True,
-            \"file_url\": result[\"file_url\"],
-            \"category\": category,
-            \"tags\": tags,
-            \"metadata\": metadata
+            "success": True,
+            "file_url": result["file_url"],
+            "category": category,
+            "tags": tags,
+            "metadata": metadata
         }
     except Exception as e:
-        logger.error(f\"Smart upload error: {str(e)}\")
+        logger.error(f"Smart upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Automation Control
