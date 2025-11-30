@@ -842,9 +842,9 @@ async def trigger_recurring_tasks(current_user: User = Depends(get_current_user)
     """Manually trigger recurring task generation."""
     try:
         await automation_service.generate_recurring_tasks()
-        return {\"success\": True, \"message\": \"Recurring tasks generated\"}
+        return {"success": True, "message": "Recurring tasks generated"}
     except Exception as e:
-        logger.error(f\"Recurring task trigger error: {str(e)}\")
+        logger.error(f"Recurring task trigger error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Include auth router
