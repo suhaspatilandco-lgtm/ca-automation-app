@@ -10,9 +10,9 @@ from email_service import email_service
 logger = logging.getLogger(__name__)
 
 # MongoDB connection
-mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME', 'test_database')]
+db = client[os.environ['DB_NAME']]
 
 class AutomationService:
     def __init__(self):
