@@ -666,7 +666,7 @@ async def bulk_import_clients(
         result = await bulk_import_service.import_clients_from_csv(file_content, db)
         return result
     except Exception as e:
-        logger.error(f\"Import error: {str(e)}\")
+        logger.error(f"Import error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/import/tasks")
@@ -680,7 +680,7 @@ async def bulk_import_tasks(
         result = await bulk_import_service.import_tasks_from_csv(file_content, db)
         return result
     except Exception as e:
-        logger.error(f\"Import error: {str(e)}\")
+        logger.error(f"Import error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/import/templates/clients")
