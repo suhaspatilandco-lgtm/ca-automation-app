@@ -19,6 +19,10 @@ from auth_routes import router as auth_router
 from email_service import email_service
 from file_service import file_service
 from pdf_service import pdf_service
+from automation_service import automation_service
+from bulk_import_service import bulk_import_service
+from document_intelligence import document_intelligence
+from template_service import template_service
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
