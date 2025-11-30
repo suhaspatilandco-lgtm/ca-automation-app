@@ -1,6 +1,8 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Response
+from fastapi.responses import FileResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -11,6 +13,13 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 
+# Import production services
+from auth import get_current_user, User
+from auth_routes import router as auth_router
+from email_service import email_service
+from file_service import file_service
+from pdf_service import pdf_service
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -20,7 +29,12 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app without a prefix
-app = FastAPI()
+app = FastAPI(title="CA Practice Automation API", version="2.0.0")
+
+# Mount uploads directory for file serving
+uploads_dir = Path("/app/backend/uploads")
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
