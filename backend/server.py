@@ -832,9 +832,9 @@ async def trigger_reminders(current_user: User = Depends(get_current_user)):
     """Manually trigger deadline reminders."""
     try:
         await automation_service.send_deadline_reminders()
-        return {\"success\": True, \"message\": \"Reminders sent\"}
+        return {"success": True, "message": "Reminders sent"}
     except Exception as e:
-        logger.error(f\"Reminder trigger error: {str(e)}\")
+        logger.error(f"Reminder trigger error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/automation/trigger/recurring-tasks")
