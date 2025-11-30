@@ -652,6 +652,201 @@ async def export_clients_csv(current_user: User = Depends(get_current_user)):
         logger.error(f"Export error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ===== AUTOMATION FEATURES =====
+
+# Bulk Import Routes
+@api_router.post("/import/clients")
+async def bulk_import_clients(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk import clients from CSV."""
+    try:
+        file_content = await file.read()
+        result = await bulk_import_service.import_clients_from_csv(file_content, db)
+        return result
+    except Exception as e:
+        logger.error(f\"Import error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/import/tasks")
+async def bulk_import_tasks(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk import tasks from CSV."""
+    try:
+        file_content = await file.read()
+        result = await bulk_import_service.import_tasks_from_csv(file_content, db)
+        return result
+    except Exception as e:
+        logger.error(f\"Import error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/import/templates/clients")
+async def download_client_template(current_user: User = Depends(get_current_user)):
+    """Download CSV template for client import."""
+    template_bytes = bulk_import_service.generate_client_template()
+    return Response(
+        content=template_bytes,
+        media_type=\"text/csv\",
+        headers={\"Content-Disposition\": \"attachment; filename=client_import_template.csv\"}
+    )
+
+@api_router.get("/import/templates/tasks")
+async def download_task_template(current_user: User = Depends(get_current_user)):
+    """Download CSV template for task import."""
+    template_bytes = bulk_import_service.generate_task_template()
+    return Response(
+        content=template_bytes,
+        media_type=\"text/csv\",
+        headers={\"Content-Disposition\": \"attachment; filename=task_import_template.csv\"}
+    )
+
+# Template-based Task Creation
+@api_router.get("/templates/services")
+async def get_service_templates(current_user: User = Depends(get_current_user)):
+    """Get available service templates."""
+    return {\"templates\": template_service.get_available_templates()}
+
+@api_router.post("/templates/create-task")
+async def create_task_from_template(
+    template_name: str,
+    client_id: str,
+    custom_data: Optional[Dict] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Create task from template."""
+    try:
+        # Get client
+        client = await db.clients.find_one({\"id\": client_id}, {\"_id\": 0})
+        if not client:
+            raise HTTPException(status_code=404, detail=\"Client not found\")
+        
+        result = await template_service.create_from_template(
+            template_name=template_name,
+            client_id=client_id,
+            client_name=client['name'],
+            db=db,
+            custom_data=custom_data
+        )
+        
+        if not result[\"success\"]:
+            raise HTTPException(status_code=400, detail=result[\"error\"])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f\"Template task creation error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Smart Document Upload with Auto-categorization
+@api_router.post("/upload/smart")
+async def smart_upload_file(
+    file: UploadFile = File(...),
+    client_id: str = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Upload file with automatic categorization."""
+    try:
+        # Auto-categorize
+        category = document_intelligence.auto_categorize(file.filename)
+        
+        # Extract metadata
+        metadata = document_intelligence.extract_metadata(file.filename)
+        
+        # Suggest tags
+        tags = document_intelligence.suggest_tags(file.filename, category)
+        
+        # Save file
+        file_content = await file.read()
+        result = file_service.save_file(file_content, file.filename, category)
+        
+        if not result[\"success\"]:
+            raise HTTPException(status_code=500, detail=result[\"error\"])
+        
+        # Create document record
+        doc = {
+            \"id\": str(uuid.uuid4()),
+            \"client_id\": client_id,
+            \"filename\": file.filename,
+            \"file_url\": result[\"file_url\"],
+            \"category\": category,
+            \"tags\": tags,
+            \"metadata\": metadata,
+            \"uploaded_at\": datetime.now(timezone.utc).isoformat()
+        }
+        
+        if client_id:
+            client = await db.clients.find_one({\"id\": client_id}, {\"_id\": 0})
+            if client:
+                doc[\"client_name\"] = client['name']
+        
+        await db.documents.insert_one(doc)
+        
+        return {
+            \"success\": True,
+            \"file_url\": result[\"file_url\"],
+            \"category\": category,
+            \"tags\": tags,
+            \"metadata\": metadata
+        }
+    except Exception as e:
+        logger.error(f\"Smart upload error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Automation Control
+@api_router.post("/automation/start")
+async def start_automation(current_user: User = Depends(get_current_user)):
+    """Start automated task generation and reminders."""
+    try:
+        automation_service.start_automation()
+        return {
+            \"success\": True,
+            \"message\": \"Automation started successfully\",
+            \"scheduled_jobs\": [
+                \"Deadline reminders (daily at 9 AM)\",
+                \"Recurring task generation (daily at midnight)\",
+                \"Overdue task updates (hourly)\",
+                \"Auto task assignment (daily at 8 AM)\"
+            ]
+        }
+    except Exception as e:
+        logger.error(f\"Automation start error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/automation/stop")
+async def stop_automation(current_user: User = Depends(get_current_user)):
+    """Stop automation scheduler."""
+    try:
+        automation_service.shutdown()
+        return {\"success\": True, \"message\": \"Automation stopped\"}
+    except Exception as e:
+        logger.error(f\"Automation stop error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Manual trigger for testing
+@api_router.post("/automation/trigger/reminders")
+async def trigger_reminders(current_user: User = Depends(get_current_user)):
+    """Manually trigger deadline reminders."""
+    try:
+        await automation_service.send_deadline_reminders()
+        return {\"success\": True, \"message\": \"Reminders sent\"}
+    except Exception as e:
+        logger.error(f\"Reminder trigger error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/automation/trigger/recurring-tasks")
+async def trigger_recurring_tasks(current_user: User = Depends(get_current_user)):
+    """Manually trigger recurring task generation."""
+    try:
+        await automation_service.generate_recurring_tasks()
+        return {\"success\": True, \"message\": \"Recurring tasks generated\"}
+    except Exception as e:
+        logger.error(f\"Recurring task trigger error: {str(e)}\")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include auth router
 app.include_router(auth_router, prefix="/api")
 
