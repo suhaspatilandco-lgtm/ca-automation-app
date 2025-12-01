@@ -21,7 +21,8 @@ export const Layout = () => {
     { path: '/tasks', icon: CheckSquare, label: 'Tasks & Deadlines' },
     { path: '/documents', icon: FileText, label: 'Documents' },
     { path: '/invoices', icon: Receipt, label: 'Invoices' },
-    { path: '/staff', icon: UserCog, label: 'Staff' }
+    { path: '/staff', icon: UserCog, label: 'Staff' },
+    { path: '/ca-workflow', icon: Building2, label: 'CA Workflow' }
   ];
 
   const isActive = (path) => {
