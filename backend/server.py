@@ -23,6 +23,11 @@ from automation_service import automation_service
 from bulk_import_service import bulk_import_service
 from document_intelligence import document_intelligence
 from template_service import template_service
+from ca_workflow_service import ca_workflow_service
+from ca_workflow_models import (
+    BusinessType, WIPStage, QueryStatus,
+    ClientExtended, TaskExtended, Query, QueryCreate, QueryResponse
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
