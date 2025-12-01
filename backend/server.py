@@ -851,6 +851,242 @@ async def trigger_recurring_tasks(current_user: User = Depends(get_current_user)
         logger.error(f"Recurring task trigger error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ===== CA WORKFLOW FEATURES =====
+
+# Business Type & Compliance Management
+@api_router.get("/ca/business-types")
+async def get_business_types(current_user: User = Depends(get_current_user)):
+    """Get list of business types."""
+    return {
+        "business_types": [bt.value for bt in BusinessType],
+        "descriptions": {
+            "PROPRIETORSHIP": "Individual doing business",
+            "PARTNERSHIP": "Partnership firm",
+            "LLP": "Limited Liability Partnership",
+            "PRIVATE_LIMITED": "Private Limited Company",
+            "PUBLIC_LIMITED": "Public Limited Company",
+            "TRUST": "Trust or Society",
+            "HUF": "Hindu Undivided Family",
+            "INDIVIDUAL": "Individual (not doing business)"
+        }
+    }
+
+@api_router.post("/ca/compliance-requirements")
+async def get_compliance_requirements(
+    business_type: BusinessType,
+    turnover: Optional[float] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get compliance requirements for a business type."""
+    requirements = ca_workflow_service.determine_compliance_requirements(business_type, turnover)
+    return requirements
+
+# Financial Year Management
+@api_router.get("/ca/financial-year")
+async def get_current_financial_year(current_user: User = Depends(get_current_user)):
+    """Get current financial year details."""
+    return ca_workflow_service.get_financial_year()
+
+@api_router.get("/ca/quarter")
+async def get_current_quarter(current_user: User = Depends(get_current_user)):
+    """Get current quarter."""
+    quarter = ca_workflow_service.get_quarter()
+    fy = ca_workflow_service.get_financial_year()
+    return {
+        "quarter": quarter,
+        "financial_year": fy["fy_code"],
+        "quarter_label": f"Q{quarter} {fy['fy_code']}"
+    }
+
+# WIP Stage Management
+@api_router.get("/ca/wip-stages")
+async def get_wip_stages(current_user: User = Depends(get_current_user)):
+    """Get list of WIP stages."""
+    return {
+        "stages": [stage.value for stage in WIPStage],
+        "sequence": ca_workflow_service.get_wip_stage_sequence()
+    }
+
+@api_router.put("/tasks/{task_id}/wip-stage")
+async def update_task_wip_stage(
+    task_id: str,
+    wip_stage: WIPStage,
+    current_user: User = Depends(get_current_user)
+):
+    """Update task WIP stage."""
+    try:
+        result = await db.tasks.update_one(
+            {"id": task_id},
+            {
+                "$set": {
+                    "wip_stage": wip_stage.value,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # If stage is COMPLETED, mark task as completed
+        if wip_stage == WIPStage.COMPLETED:
+            await db.tasks.update_one(
+                {"id": task_id},
+                {"$set": {"status": "COMPLETED"}}
+            )
+        
+        return {"success": True, "wip_stage": wip_stage.value}
+    except Exception as e:
+        logger.error(f"Error updating WIP stage: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Query Management
+@api_router.post("/queries")
+async def create_query(
+    query_input: QueryCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new query for a task."""
+    try:
+        # Get client name
+        client = await db.clients.find_one({"id": query_input.client_id}, {"_id": 0})
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        query = Query(
+            task_id=query_input.task_id,
+            client_id=query_input.client_id,
+            client_name=client['name'],
+            query_text=query_input.query_text,
+            raised_by=query_input.raised_by
+        )
+        
+        doc = query.model_dump()
+        doc['raised_at'] = doc['raised_at'].isoformat()
+        
+        await db.queries.insert_one(doc)
+        
+        # Send email notification to client
+        email_service.send_email(
+            to=client['email'],
+            subject=f"Query Raised - {query_input.query_text[:50]}",
+            html=f"""
+            <html>
+                <body style="font-family: Arial, sans-serif;">
+                    <h2>Query from CA</h2>
+                    <p>Dear {client['name']},</p>
+                    <p>We need some information from you:</p>
+                    <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid #10b981;">
+                        <strong>Query:</strong> {query_input.query_text}
+                    </div>
+                    <p>Please respond at your earliest convenience.</p>
+                    <p>Raised by: {query_input.raised_by}</p>
+                </body>
+            </html>
+            """
+        )
+        
+        return {"success": True, "query": query.model_dump()}
+    except Exception as e:
+        logger.error(f"Error creating query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/queries")
+async def get_queries(
+    task_id: Optional[str] = None,
+    client_id: Optional[str] = None,
+    status: Optional[QueryStatus] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get queries with optional filters."""
+    try:
+        query_filter = {}
+        if task_id:
+            query_filter['task_id'] = task_id
+        if client_id:
+            query_filter['client_id'] = client_id
+        if status:
+            query_filter['status'] = status.value
+        
+        queries = await db.queries.find(query_filter, {"_id": 0}).to_list(1000)
+        
+        # Calculate aging for each query
+        now = datetime.now(timezone.utc)
+        for query in queries:
+            if isinstance(query.get('raised_at'), str):
+                raised_at = datetime.fromisoformat(query['raised_at'])
+                query['days_pending'] = ca_workflow_service.calculate_query_aging(raised_at, now)
+        
+        return queries
+    except Exception as e:
+        logger.error(f"Error fetching queries: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/queries/{query_id}/respond")
+async def respond_to_query(
+    query_id: str,
+    response_input: QueryResponse,
+    current_user: User = Depends(get_current_user)
+):
+    """Client responds to a query."""
+    try:
+        result = await db.queries.update_one(
+            {"id": query_id},
+            {
+                "$set": {
+                    "response": response_input.response,
+                    "responded_at": datetime.now(timezone.utc).isoformat(),
+                    "status": QueryStatus.RESOLVED.value
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Query not found")
+        
+        return {"success": True, "message": "Response recorded"}
+    except Exception as e:
+        logger.error(f"Error responding to query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Late Fee Calculation
+@api_router.post("/ca/calculate-late-fee")
+async def calculate_late_fee(
+    task_type: str,
+    due_date: datetime,
+    current_user: User = Depends(get_current_user)
+):
+    """Calculate late fee for a missed deadline."""
+    penalty = ca_workflow_service.calculate_late_fee(task_type, due_date)
+    return penalty
+
+# Service Checklists
+@api_router.get("/ca/checklist/{service_type}")
+async def get_service_checklist(
+    service_type: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get detailed checklist for a service."""
+    checklist = ca_workflow_service.get_service_checklist(service_type)
+    return {"service_type": service_type, "checklist": checklist}
+
+# Validation Utilities
+@api_router.post("/ca/validate-gstin")
+async def validate_gstin(
+    gstin: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Validate GSTIN format."""
+    return ca_workflow_service.validate_gstin(gstin)
+
+@api_router.post("/ca/validate-pan")
+async def validate_pan(
+    pan: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Validate PAN format."""
+    return ca_workflow_service.validate_pan(pan)
+
 # Include auth router
 app.include_router(auth_router, prefix="/api")
 
