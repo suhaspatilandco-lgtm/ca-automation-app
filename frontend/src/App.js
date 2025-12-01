@@ -24,6 +24,7 @@ function App() {
             <Route path="documents" element={<Documents />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="ca-workflow" element={<CAWorkflow />} />
           </Route>
         </Routes>
       </BrowserRouter>
