@@ -1,0 +1,14 @@
+{
+  "name": "ca-automation-backend",
+  "version": "1.0.0",
+  "description": "Backend for CA Automation App",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "selftest": "node index.js --selftest"
+  },
+  "dependencies": {
+    "express": "^4.19.0"
+  }
+}
