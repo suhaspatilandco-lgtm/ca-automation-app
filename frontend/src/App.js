@@ -8,6 +8,7 @@ import Tasks from '@/pages/Tasks';
 import Documents from '@/pages/Documents';
 import Invoices from '@/pages/Invoices';
 import Staff from '@/pages/Staff';
+import CAWorkflow from '@/pages/CAWorkflow';
 import { Toaster } from 'sonner';
 
 function App() {
