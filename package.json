@@ -1,0 +1,17 @@
+{
+  "name": "ca-automation-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node backend/index.js",
+    "start:backend": "node backend/index.js",
+    "start:frontend": "npx serve -s frontend -l 3000",
+    "test": "node backend/index.js --selftest"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}
